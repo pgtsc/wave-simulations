@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wave Lab Ultimate: Perfect Circles</title>
+<title>Wave Lab Ultimate: Wavefront Propagation</title>
 <style>
   body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100vh; }
@@ -40,6 +40,7 @@
       <label>Particle Density</label>
       <input type="range" id="density" min="20" max="500" step="10" value="200">
       
+      <button id="resetBtn" style="background:#28a745;">Reset Animation</button>
       <button id="pauseBtn" style="background:#dc3545;">Pause / Play</button>
     </div>
     <div id="simContainer"></div>
@@ -66,6 +67,7 @@ let controls = new OrbitControls(camera, renderer.domElement);
 let clock = new THREE.Clock();
 let paused = false, isStanding = false, isLongitudinal = false, isLineView = false;
 let timeScale = 1;
+let elapsedTime = 0;
 
 let uniforms = {
   uTime: { value: 0 },
@@ -77,29 +79,40 @@ let uniforms = {
   uLongitudinal: { value: 0.0 }
 };
 
-// "Chapped" বা চ্যাপ্টা হওয়া রোধ করতে worldPosition লজিক ঠিক করা হয়েছে
 let material = new THREE.ShaderMaterial({
   uniforms: uniforms,
   vertexShader: `
     uniform float uTime, uAmp, uFreq, uLambda, uPhase, uStanding, uLongitudinal;
     varying float vEnergy;
     void main(){
-      // পজিশনকে অবজেক্ট স্পেস থেকে ওয়ার্ল্ড স্পেসে নেয়ার আগে ডিসপ্লেসমেন্ট ক্যালকুলেট করা
       vec3 pos = position;
-      float x0 = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).x + position.x;
+      // x0 represents the horizontal position from left (-6) to right (6)
+      float x0 = (modelMatrix * vec4(position, 1.0)).x;
       
       float k = 6.28318 / uLambda;
       float omega = 6.28318 * uFreq;
-      float disp;
-
-      if(uStanding > 0.5) disp = uAmp * sin(k * x0 + uPhase) * cos(omega * uTime);
-      else disp = uAmp * sin(k * x0 - omega * uTime + uPhase);
+      float velocity = omega / k; // Wave speed
+      
+      float disp = 0.0;
+      
+      if(uStanding > 0.5) {
+        disp = uAmp * sin(k * (x0 + 6.0) + uPhase) * cos(omega * uTime);
+      } else {
+        // Only propagate if the wave has reached this x-position
+        // We use (x0 + 6.0) because our wave starts at x = -6
+        float distanceTravelled = velocity * uTime;
+        float currentX = x0 + 6.0;
+        
+        if (distanceTravelled > currentX) {
+           disp = uAmp * sin(k * currentX - omega * uTime + uPhase);
+        }
+      }
 
       vec3 newPos = position;
       if(uLongitudinal > 0.5) newPos.x += disp;
       else newPos.y += disp;
 
-      vEnergy = abs(disp / uAmp);
+      vEnergy = abs(disp / (uAmp + 0.001));
       gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
     }
   `,
@@ -130,7 +143,6 @@ function createWaveform(n) {
     waveGroup.add(new THREE.LineSegments(geometry, material));
   } else {
     let rows = isLongitudinal ? 6 : 1;
-    // SphereGeometry-র সেগমেন্ট বাড়িয়ে মসৃণ করা হয়েছে
     let sphereGeo = new THREE.SphereGeometry(0.07, 16, 16); 
     for(let r=0; r<rows; r++) {
       let yOffset = (r - (rows - 1) / 2) * 0.5;
@@ -155,7 +167,11 @@ createWaveform(200);
 
 function animate() {
   requestAnimationFrame(animate);
-  if(!paused) uniforms.uTime.value = clock.getElapsedTime() * timeScale;
+  let delta = clock.getDelta();
+  if(!paused) {
+    elapsedTime += delta * timeScale;
+    uniforms.uTime.value = elapsedTime;
+  }
   controls.update();
   renderer.render(scene, camera);
 }
@@ -178,6 +194,14 @@ document.getElementById("waveTypeBtn").onclick = e => {
   e.target.innerText = isLongitudinal ? "Switch to Transverse" : "Switch to Longitudinal";
   createWaveform(parseInt(document.getElementById("density").value));
 };
+
+// RESET LOGIC
+document.getElementById("resetBtn").onclick = () => {
+  elapsedTime = 0;
+  uniforms.uTime.value = 0;
+  if(paused) renderer.render(scene, camera);
+};
+
 document.getElementById("amp").oninput = e => uniforms.uAmp.value = parseFloat(e.target.value);
 document.getElementById("freq").oninput = e => uniforms.uFreq.value = parseFloat(e.target.value);
 document.getElementById("lambda").oninput = e => uniforms.uLambda.value = parseFloat(e.target.value);
