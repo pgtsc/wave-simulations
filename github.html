@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wave Lab Ultimate: Perfect Circles</title>
+<style>
+  body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  #header { text-align: center; padding: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+  #main { flex: 1; display: flex; padding: 15px; gap: 15px; box-sizing: border-box; overflow: hidden; }
+  #controls { width: 280px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+  #controls label { font-size: 12px; font-weight: bold; color: #555; }
+  #controls input { width: 100%; margin-bottom: 8px; cursor: pointer; }
+  #controls button { width: 100%; padding: 10px; border: none; border-radius: 6px; background: #007bff; color: white; font-weight: bold; cursor: pointer; margin-bottom: 5px; }
+  #controls button:hover { background: #0056b3; }
+  #simContainer { flex: 1; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header"><h2>Wave Lab Ultimate Hybrid</h2></div>
+  <div id="main">
+    <div id="controls">
+      <button id="viewBtn">Switch to Lines View</button>
+      <button id="modeBtn">Standing Wave</button>
+      <button id="waveTypeBtn">Switch to Longitudinal</button>
+      
+      <label>Amplitude</label>
+      <input type="range" id="amp" min="0" max="1" step="0.01" value="0.4">
+      <label>Frequency</label>
+      <input type="range" id="freq" min="0.5" max="5" step="0.1" value="1.5">
+      <label>Wavelength</label>
+      <input type="range" id="lambda" min="1" max="5" step="0.1" value="2.5">
+      <label>Phase</label>
+      <input type="range" id="phase" min="0" max="6.28" step="0.01" value="0">
+      <label>Slow Motion</label>
+      <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1">
+      <label>Particle Density</label>
+      <input type="range" id="density" min="20" max="500" step="10" value="200">
+      
+      <button id="pauseBtn" style="background:#dc3545;">Pause / Play</button>
+    </div>
+    <div id="simContainer"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js?module';
+
+const container = document.getElementById("simContainer");
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+let camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 0, 10);
+
+let renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+let controls = new OrbitControls(camera, renderer.domElement);
+let clock = new THREE.Clock();
+let paused = false, isStanding = false, isLongitudinal = false, isLineView = false;
+let timeScale = 1;
+
+let uniforms = {
+  uTime: { value: 0 },
+  uAmp: { value: 0.4 },
+  uFreq: { value: 1.5 },
+  uLambda: { value: 2.5 },
+  uPhase: { value: 0.0 },
+  uStanding: { value: 0.0 },
+  uLongitudinal: { value: 0.0 }
+};
+
+// "Chapped" বা চ্যাপ্টা হওয়া রোধ করতে worldPosition লজিক ঠিক করা হয়েছে
+let material = new THREE.ShaderMaterial({
+  uniforms: uniforms,
+  vertexShader: `
+    uniform float uTime, uAmp, uFreq, uLambda, uPhase, uStanding, uLongitudinal;
+    varying float vEnergy;
+    void main(){
+      // পজিশনকে অবজেক্ট স্পেস থেকে ওয়ার্ল্ড স্পেসে নেয়ার আগে ডিসপ্লেসমেন্ট ক্যালকুলেট করা
+      vec3 pos = position;
+      float x0 = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).x + position.x;
+      
+      float k = 6.28318 / uLambda;
+      float omega = 6.28318 * uFreq;
+      float disp;
+
+      if(uStanding > 0.5) disp = uAmp * sin(k * x0 + uPhase) * cos(omega * uTime);
+      else disp = uAmp * sin(k * x0 - omega * uTime + uPhase);
+
+      vec3 newPos = position;
+      if(uLongitudinal > 0.5) newPos.x += disp;
+      else newPos.y += disp;
+
+      vEnergy = abs(disp / uAmp);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying float vEnergy;
+    void main(){
+      vec3 low = vec3(0.0, 0.3, 0.9);
+      vec3 high = vec3(1.0, 0.1, 0.1);
+      gl_FragColor = vec4(mix(low, high, vEnergy), 1.0);
+    }
+  `
+});
+
+let waveGroup = new THREE.Group();
+scene.add(waveGroup);
+
+function createWaveform(n) {
+  waveGroup.clear();
+  let spacing = 12 / n;
+  if(isLineView) {
+    let geometry = new THREE.BufferGeometry();
+    let positions = [];
+    for(let i=0; i<n; i++) {
+      let x = -6 + i*spacing;
+      positions.push(x, -1.5, 0, x, 1.5, 0);
+    }
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    waveGroup.add(new THREE.LineSegments(geometry, material));
+  } else {
+    let rows = isLongitudinal ? 6 : 1;
+    // SphereGeometry-র সেগমেন্ট বাড়িয়ে মসৃণ করা হয়েছে
+    let sphereGeo = new THREE.SphereGeometry(0.07, 16, 16); 
+    for(let r=0; r<rows; r++) {
+      let yOffset = (r - (rows - 1) / 2) * 0.5;
+      for(let i=0; i<n; i++) {
+        let mesh = new THREE.Mesh(sphereGeo, material);
+        mesh.position.set(-6 + i*spacing, yOffset, 0);
+        waveGroup.add(mesh);
+      }
+    }
+  }
+}
+
+function onResize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+window.addEventListener("resize", onResize);
+createWaveform(200);
+
+function animate() {
+  requestAnimationFrame(animate);
+  if(!paused) uniforms.uTime.value = clock.getElapsedTime() * timeScale;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// UI Handlers
+document.getElementById("viewBtn").onclick = e => {
+  isLineView = !isLineView;
+  e.target.innerText = isLineView ? "Switch to Particles View" : "Switch to Lines View";
+  createWaveform(parseInt(document.getElementById("density").value));
+};
+document.getElementById("modeBtn").onclick = e => {
+  isStanding = !isStanding;
+  uniforms.uStanding.value = isStanding ? 1.0 : 0.0;
+  e.target.innerText = isStanding ? "Travelling Wave" : "Standing Wave";
+};
+document.getElementById("waveTypeBtn").onclick = e => {
+  isLongitudinal = !isLongitudinal;
+  uniforms.uLongitudinal.value = isLongitudinal ? 1.0 : 0.0;
+  e.target.innerText = isLongitudinal ? "Switch to Transverse" : "Switch to Longitudinal";
+  createWaveform(parseInt(document.getElementById("density").value));
+};
+document.getElementById("amp").oninput = e => uniforms.uAmp.value = parseFloat(e.target.value);
+document.getElementById("freq").oninput = e => uniforms.uFreq.value = parseFloat(e.target.value);
+document.getElementById("lambda").oninput = e => uniforms.uLambda.value = parseFloat(e.target.value);
+document.getElementById("phase").oninput = e => uniforms.uPhase.value = parseFloat(e.target.value);
+document.getElementById("speed").oninput = e => timeScale = parseFloat(e.target.value);
+document.getElementById("density").oninput = e => createWaveform(parseInt(e.target.value));
+document.getElementById("pauseBtn").onclick = () => paused = !paused;
+
+onResize();
+</script>
+</body>
+</html>
