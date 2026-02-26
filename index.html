@@ -3,18 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wave Lab: Color Control Edition</title>
+<title>Wave Lab: Scroll Fixed Pro</title>
 <style>
   body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100vh; }
   #header { text-align: center; padding: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
-  #main { flex: 1; display: flex; padding: 15px; gap: 15px; box-sizing: border-box; }
-  #controls { width: 280px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-  #controls label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-top: 4px; }
-  #controls input[type="range"] { width: 100%; margin-bottom: 4px; cursor: pointer; }
-  #controls button { width: 100%; padding: 10px; border: none; border-radius: 6px; background: #007bff; color: white; font-weight: bold; cursor: pointer; margin-bottom: 5px; }
+  
+  #main { 
+    flex: 1; 
+    display: flex; 
+    padding: 15px; 
+    gap: 15px; 
+    box-sizing: border-box; 
+    height: calc(100vh - 60px); /* Header বাদ দিয়ে বাকি উচ্চতা */
+    overflow: hidden;
+  }
+
+  /* কন্ট্রোল প্যানেলের স্ক্রল ফিক্স */
+  #controls { 
+    width: 280px; 
+    background: white; 
+    padding: 20px; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+    overflow-y: auto; /* স্ক্রল এনাবল করা হলো */
+    max-height: 100%;
+    scrollbar-width: thin; /* Firefox-এর জন্য */
+  }
+
+  /* Chrome/Safari-এর জন্য কাস্টম স্ক্রলবার */
+  #controls::-webkit-scrollbar {
+    width: 6px;
+  }
+  #controls::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+  }
+
+  #controls label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-top: 6px; }
+  #controls input[type="range"] { width: 100%; cursor: pointer; }
+  #controls button { width: 100%; padding: 10px; border: none; border-radius: 6px; background: #007bff; color: white; font-weight: bold; cursor: pointer; margin-top: 5px; flex-shrink: 0; }
   #controls button:hover { background: #0056b3; }
-  .checkbox-container { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: bold; color: #333; }
+  
+  .checkbox-container { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: bold; color: #333; flex-shrink: 0; }
+  
   #simContainer { flex: 1; background: #fff; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #ddd; }
 </style>
 </head>
@@ -35,19 +70,26 @@
 
       <label>Amplitude</label>
       <input type="range" id="amp" min="0" max="0.8" step="0.01" value="0.4">
+      
       <label>Frequency</label>
       <input type="range" id="freq" min="0.5" max="5" step="0.1" value="1.5">
+      
       <label>Wavelength</label>
       <input type="range" id="lambda" min="0.5" max="5" step="0.1" value="2.5">
+      
       <label>Phase</label>
       <input type="range" id="phase" min="0" max="6.28" step="0.01" value="0">
+      
       <label>Slow Motion (Speed)</label>
       <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1">
+      
       <label>Particle Density</label>
       <input type="range" id="density" min="20" max="250" step="1" value="100">
       
-      <button id="pauseBtn" style="background:#dc3545; margin-top:10px;">Pause / Play</button>
+      <button id="pauseBtn" style="background:#dc3545; margin-top:15px;">Pause / Play</button>
       <button id="resetBtn" style="background:#6c757d;">Reset Animation</button>
+      
+      <div style="height:20px;"></div>
     </div>
     <div id="simContainer"></div>
   </div>
@@ -75,7 +117,7 @@ const uniforms = {
   uStanding: { value: 0.0 },
   uLongitudinal: { value: 0.0 },
   uIsLine: { value: 0.0 },
-  uUseColor: { value: 1.0 }, // ১ মানে কালার, ০ মানে ব্ল্যাক
+  uUseColor: { value: 1.0 },
   uDensity: { value: 100.0 },
   uResolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
 };
@@ -134,12 +176,11 @@ const material = new THREE.ShaderMaterial({
           }
         }
 
-        // কালার লজিক
         vec3 waveCol;
         if(uUseColor > 0.5) {
             waveCol = mix(vec3(0.0, 0.3, 0.9), vec3(1.0, 0.1, 0.1), abs(disp/max(uAmp, 0.01)));
         } else {
-            waveCol = vec3(0.0); // Pure Black
+            waveCol = vec3(0.0); 
         }
 
         if(uIsLine > 0.5) {
