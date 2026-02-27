@@ -127,10 +127,14 @@ const material = new THREE.ShaderMaterial({
 
       vec3 finalColor = vec3(1.0); 
 
-      // Grid Logic
-      if(uShowGrid > 0.5) {
-          float gridX = step(0.98, fract(uv.x * 5.0)) * 0.1;
-          float gridY = step(0.98, fract(uv.y * 5.0)) * 0.1;
+      // Draw Grid Lines
+      if(uShowGrid > 0.5) {    
+          float thickness = 0.01;
+          float step = 0.1;    
+          float nearestGridX = round(uv.x / step) * step;    //uv থেকে nearest Grid Line নির্ণয় 
+          float nearestGridY = round(uv.y / step) * step;
+          float gridX = smoothstep(thickness, 0.0, abs(uv.x - nearestGridX)) * 0.1;
+          float gridY = smoothstep(thickness, 0.0, abs(uv.y - nearestGridY)) * 0.1;
           finalColor -= (gridX + gridY);
       }
 
@@ -148,12 +152,12 @@ const material = new THREE.ShaderMaterial({
       float endX = 1.2 * aspect;
       float stepSize = (endX - startX) / uDensity; 
 
-      for(float n = 0.0; n <= 250.0; n++) {
+      for(float n = 0.0; n <= 200.0; n++) {
         if (n > uDensity) break;
         float x0 = startX + (n * stepSize);
         float disp = 0.0;
         
-        // Wave 1 Logic
+        
         if(uStanding > 0.5) {
           disp = uAmp * sin(k * x0) * cos(omega * uTime);
         } else {
@@ -161,9 +165,9 @@ const material = new THREE.ShaderMaterial({
           float dist = x0 - startX; 
           if(waveFront > dist) disp = uAmp * sin(k * (waveFront - dist));
           
-          // Interference (Wave 2 from opposite side)
+          // Interference হলে ডান দিক থেকে আসা তরঙ্গের জন্য disp যোগ করতে হবে। 
           if(uInterference > 0.5) {
-              float dist2 = endX - x0;
+              float dist2 = endX - x0;  //ডান দিক থেকে আসা তরঙ্গ সেই particle এ পৌছাতে যে দূরত্ব অতিক্রম করে। 
               if(waveFront > dist2) disp += uAmp * sin(k * (waveFront - dist2));
           }
         }
