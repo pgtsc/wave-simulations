@@ -3,52 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wave Lab: Scroll Fixed Pro</title>
+<title>Wave Lab: Ultimate Physics Edition</title>
 <style>
   body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100vh; }
   #header { text-align: center; padding: 10px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+  #main { flex: 1; display: flex; padding: 15px; gap: 15px; box-sizing: border-box; height: calc(100vh - 60px); overflow: hidden; }
   
-  #main { 
-    flex: 1; 
-    display: flex; 
-    padding: 15px; 
-    gap: 15px; 
-    box-sizing: border-box; 
-    height: calc(100vh - 60px); /* Header বাদ দিয়ে বাকি উচ্চতা */
-    overflow: hidden;
-  }
-
-  /* কন্ট্রোল প্যানেলের স্ক্রল ফিক্স */
   #controls { 
-    width: 280px; 
-    background: white; 
-    padding: 20px; 
-    border-radius: 12px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-    display: flex; 
-    flex-direction: column; 
-    gap: 4px; 
-    overflow-y: auto; /* স্ক্রল এনাবল করা হলো */
-    max-height: 100%;
-    scrollbar-width: thin; /* Firefox-এর জন্য */
+    width: 280px; background: white; padding: 20px; border-radius: 12px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; 
+    gap: 4px; overflow-y: auto; max-height: 100%; scrollbar-width: thin; 
   }
-
-  /* Chrome/Safari-এর জন্য কাস্টম স্ক্রলবার */
-  #controls::-webkit-scrollbar {
-    width: 6px;
-  }
-  #controls::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 10px;
-  }
+  #controls::-webkit-scrollbar { width: 6px; }
+  #controls::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
 
   #controls label { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-top: 6px; }
   #controls input[type="range"] { width: 100%; cursor: pointer; }
   #controls button { width: 100%; padding: 10px; border: none; border-radius: 6px; background: #007bff; color: white; font-weight: bold; cursor: pointer; margin-top: 5px; flex-shrink: 0; }
   #controls button:hover { background: #0056b3; }
   
-  .checkbox-container { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; font-weight: bold; color: #333; flex-shrink: 0; }
+  .checkbox-container { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; font-weight: bold; color: #333; flex-shrink: 0; }
   
   #simContainer { flex: 1; background: #fff; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #ddd; }
 </style>
@@ -56,40 +31,40 @@
 <body>
 
 <div id="app">
-  <div id="header"><h2>Wave Lab: Pure Pixel Pro</h2></div>
+  <div id="header"><h2>Wave Lab: Virtual Physics Lab</h2></div>
   <div id="main">
     <div id="controls">
       <button id="viewBtn">Switch to Lines View</button>
       <button id="modeBtn">Standing Wave</button>
       <button id="waveTypeBtn">Switch to Longitudinal</button>
+      <button id="interferenceBtn" style="background:#28a745;">Enable Interference</button>
       
       <div class="checkbox-container">
         <input type="checkbox" id="colorToggle" checked>
-        <label for="colorToggle" style="margin:0;">Enable Color</label>
+        <label for="colorToggle">Enable Color</label>
+      </div>
+      <div class="checkbox-container">
+        <input type="checkbox" id="gridToggle">
+        <label for="gridToggle">Show Grid Lines</label>
+      </div>
+      <div class="checkbox-container">
+        <input type="checkbox" id="refToggle" checked>
+        <label for="refToggle">Show Reference Point</label>
       </div>
 
       <label>Amplitude</label>
       <input type="range" id="amp" min="0" max="0.8" step="0.01" value="0.4">
-      
       <label>Frequency</label>
       <input type="range" id="freq" min="0.5" max="5" step="0.1" value="1.5">
-      
       <label>Wavelength</label>
       <input type="range" id="lambda" min="0.5" max="5" step="0.1" value="2.5">
-      
-      <label>Phase</label>
-      <input type="range" id="phase" min="0" max="6.28" step="0.01" value="0">
-      
       <label>Slow Motion (Speed)</label>
       <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1">
-      
       <label>Particle Density</label>
       <input type="range" id="density" min="20" max="250" step="1" value="100">
       
       <button id="pauseBtn" style="background:#dc3545; margin-top:15px;">Pause / Play</button>
       <button id="resetBtn" style="background:#6c757d;">Reset Animation</button>
-      
-      <div style="height:20px;"></div>
     </div>
     <div id="simContainer"></div>
   </div>
@@ -113,11 +88,13 @@ const uniforms = {
   uAmp: { value: 0.4 },
   uFreq: { value: 1.5 },
   uLambda: { value: 2.5 },
-  uPhase: { value: 0.0 },
   uStanding: { value: 0.0 },
   uLongitudinal: { value: 0.0 },
   uIsLine: { value: 0.0 },
   uUseColor: { value: 1.0 },
+  uShowGrid: { value: 0.0 },
+  uShowRef: { value: 1.0 },
+  uInterference: { value: 0.0 },
   uDensity: { value: 100.0 },
   uResolution: { value: new THREE.Vector2(container.clientWidth, container.clientHeight) }
 };
@@ -126,13 +103,10 @@ const material = new THREE.ShaderMaterial({
   uniforms: uniforms,
   vertexShader: `
     varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = vec4(position, 1.0);
-    }
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
   `,
   fragmentShader: `
-    uniform float uTime, uAmp, uFreq, uLambda, uPhase, uStanding, uLongitudinal, uIsLine, uDensity, uUseColor;
+    uniform float uTime, uAmp, uFreq, uLambda, uStanding, uLongitudinal, uIsLine, uDensity, uUseColor, uShowGrid, uShowRef, uInterference;
     uniform vec2 uResolution;
     varying vec2 vUv;
 
@@ -150,44 +124,53 @@ const material = new THREE.ShaderMaterial({
       vec2 uv = (vUv * 2.0 - 1.0);
       float aspect = uResolution.x / uResolution.y;
       uv.x *= aspect;
+
       vec3 finalColor = vec3(1.0); 
-     
-      if(uLongitudinal > 0.5){ 
-        if(uv.y < - 0.5 || uv.y > 0.5) { gl_FragColor = vec4(finalColor,1.0); return;} 
-      }else{
-        float maxDisp = uAmp + 0.25;
-        if(uv.y < -maxDisp || uv.y > maxDisp) { gl_FragColor = vec4(finalColor,1.0); return;}}
-      
+
+      // Grid Logic
+      if(uShowGrid > 0.5) {
+          float gridX = step(0.98, fract(uv.x * 5.0)) * 0.1;
+          float gridY = step(0.98, fract(uv.y * 5.0)) * 0.1;
+          finalColor -= (gridX + gridY);
+      }
+
+      float maxDisp = (uInterference > 0.5) ? (uAmp * 2.0 + 0.25) : (uAmp + 0.25);
+      if(uLongitudinal > 0.5){
+          if(uv.y < -0.5 || uv.y > 0.5) { gl_FragColor = vec4(finalColor, 1.0); return; } 
+      } else {
+          if(uv.y < -maxDisp || uv.y > maxDisp) { gl_FragColor = vec4(finalColor, 1.0); return; } 
+      }
+
       float k = 6.28318 / uLambda;
       float omega = 6.28318 * uFreq;
       float v = omega / k; 
-
-      float startX = -0.98 * aspect;
-      float endX = 0.98 * aspect;
+      float startX = -1.2 * aspect;
+      float endX = 1.2 * aspect;
       float stepSize = (endX - startX) / uDensity; 
 
-
-      for(float n = 0.0; n <= uDensity; n++) {
-
+      for(float n = 0.0; n <= 250.0; n++) {
+        if (n > uDensity) break;
         float x0 = startX + (n * stepSize);
         float disp = 0.0;
         
+        // Wave 1 Logic
         if(uStanding > 0.5) {
-          disp = uAmp * sin(k * x0 + uPhase) * cos(omega * uTime);
+          disp = uAmp * sin(k * x0) * cos(omega * uTime);
         } else {
           float waveFront = v * uTime;
-          float distanceOffset = x0 - startX; 
-          if(waveFront > distanceOffset) {
-            disp = uAmp * sin(k * (waveFront - distanceOffset) + uPhase);
+          float dist = x0 - startX; 
+          if(waveFront > dist) disp = uAmp * sin(k * (waveFront - dist));
+          
+          // Interference (Wave 2 from opposite side)
+          if(uInterference > 0.5) {
+              float dist2 = endX - x0;
+              if(waveFront > dist2) disp += uAmp * sin(k * (waveFront - dist2));
           }
         }
 
-        vec3 waveCol;
-        if(uUseColor > 0.5) {
-            waveCol = mix(vec3(0.0, 0.3, 0.9), vec3(1.0, 0.1, 0.1), abs(disp/max(uAmp, 0.01)));
-        } else {
-            waveCol = vec3(0.0); 
-        }
+        bool isRef = (abs(n - uDensity/2.0) < 0.6) && (uShowRef > 0.5);
+        vec3 waveCol = (uUseColor > 0.5) ? mix(vec3(0.0, 0.3, 0.9), vec3(1.0, 0.1, 0.1), abs(disp/max(maxDisp, 0.01))) : vec3(0.0);
+        if(isRef) waveCol = vec4(1.0, 0.0, 0.0, 1.0).rgb;
 
         if(uIsLine > 0.5) {
           float lX = (uLongitudinal > 0.5) ? x0 + disp : x0;
@@ -200,7 +183,8 @@ const material = new THREE.ShaderMaterial({
              if(r >= rows) break;
              float yOffset = (r - (rows - 1.0) * 0.5) * 0.2;
              vec2 pPos = (uLongitudinal > 0.5) ? vec2(x0 + disp, yOffset) : vec2(x0, yOffset + disp);
-             float c = drawCircle(uv, pPos, 0.022);
+             float cSize = isRef ? 0.035 : 0.022;
+             float c = drawCircle(uv, pPos, cSize);
              if(c > 0.5) finalColor = mix(finalColor, waveCol, c);
           }
         }
@@ -216,42 +200,39 @@ scene.add(mesh);
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-  if(!paused) {
-    totalElapsed += delta * timeScale;
-    uniforms.uTime.value = totalElapsed;
-  }
+  if(!paused) { totalElapsed += delta * timeScale; uniforms.uTime.value = totalElapsed; }
   renderer.render(scene, camera);
 }
 animate();
 
-// UI Handlers
-document.getElementById("colorToggle").onchange = e => {
-  uniforms.uUseColor.value = e.target.checked ? 1.0 : 0.0;
-};
+// UI Bindlers
+document.getElementById("colorToggle").onchange = e => uniforms.uUseColor.value = e.target.checked ? 1.0 : 0.0;
+document.getElementById("gridToggle").onchange = e => uniforms.uShowGrid.value = e.target.checked ? 1.0 : 0.0;
+document.getElementById("refToggle").onchange = e => uniforms.uShowRef.value = e.target.checked ? 1.0 : 0.0;
 document.getElementById("viewBtn").onclick = e => {
-  uniforms.uIsLine.value = uniforms.uIsLine.value === 0.0 ? 1.0 : 0.0;
+  uniforms.uIsLine.value = 1.0 - uniforms.uIsLine.value;
   e.target.innerText = uniforms.uIsLine.value > 0.5 ? "Switch to Particles View" : "Switch to Lines View";
 };
 document.getElementById("modeBtn").onclick = e => {
-  uniforms.uStanding.value = uniforms.uStanding.value === 0.0 ? 1.0 : 0.0;
+  uniforms.uStanding.value = 1.0 - uniforms.uStanding.value;
   e.target.innerText = uniforms.uStanding.value > 0.5 ? "Travelling Wave" : "Standing Wave";
 };
+document.getElementById("interferenceBtn").onclick = e => {
+  uniforms.uInterference.value = 1.0 - uniforms.uInterference.value;
+  e.target.innerText = uniforms.uInterference.value > 0.5 ? "Disable Interference" : "Enable Interference";
+  e.target.style.background = uniforms.uInterference.value > 0.5 ? "#6c757d" : "#28a745";
+};
 document.getElementById("waveTypeBtn").onclick = e => {
-  uniforms.uLongitudinal.value = uniforms.uLongitudinal.value === 0.0 ? 1.0 : 0.0;
+  uniforms.uLongitudinal.value = 1.0 - uniforms.uLongitudinal.value;
   e.target.innerText = uniforms.uLongitudinal.value > 0.5 ? "Switch to Transverse" : "Switch to Longitudinal";
 };
 document.getElementById("amp").oninput = e => uniforms.uAmp.value = parseFloat(e.target.value);
 document.getElementById("freq").oninput = e => uniforms.uFreq.value = parseFloat(e.target.value);
 document.getElementById("lambda").oninput = e => uniforms.uLambda.value = parseFloat(e.target.value);
-document.getElementById("phase").oninput = e => uniforms.uPhase.value = parseFloat(e.target.value);
 document.getElementById("speed").oninput = e => timeScale = parseFloat(e.target.value);
 document.getElementById("density").oninput = e => uniforms.uDensity.value = parseFloat(e.target.value);
-
 document.getElementById("pauseBtn").onclick = () => paused = !paused;
-document.getElementById("resetBtn").onclick = () => { 
-  totalElapsed = 0; 
-  uniforms.uTime.value = 0;
-};
+document.getElementById("resetBtn").onclick = () => { totalElapsed = 0; uniforms.uTime.value = 0; };
 
 window.onresize = () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
